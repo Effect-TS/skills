@@ -137,6 +137,8 @@ Use this for:
 
 Use `Effect.fnUntraced` only for edge cases.
 
+The vendored Effect repo itself uses `fnUntraced` in a number of low-level internals and integration helpers. That does not make it the default recommendation for downstream application or business code.
+
 If you do not want an explicit named span, prefer `Effect.fn` without a span name so you still keep stack traces and the normal traced-function behavior.
 
 Prefer this:

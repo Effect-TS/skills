@@ -54,6 +54,11 @@ Prefer the class syntax with `Context.Service`.
 
 This matches the vendored repo's current style.
 
+There are two good definition styles:
+
+- explicit service shape in the `Context.Service<...>` generic
+- inferred service shape from the `make` argument
+
 Example:
 
 ```ts
@@ -80,6 +85,47 @@ Why this style is preferred:
 Repo reference:
 
 - `./.repos/effect/packages/effect/src/Context.ts`
+
+## Service Shape Inference With `make`
+
+When the implementation shape is clearer than the interface declaration, prefer using the `make` argument so the service shape is inferred from the implementation.
+
+```ts
+import { Context, Effect, Schema } from "effect"
+
+class UserRepoError extends Schema.TaggedErrorClass<UserRepoError>()(
+  "UserRepoError",
+  {
+    message: Schema.String
+  }
+) {}
+
+class UserRepo extends Context.Service("UserRepo", {
+  make: () => ({
+    getById: Effect.fn("UserRepo.getById")(function*(id: string) {
+      return yield* Effect.fail(
+        new UserRepoError({ message: `User ${id} not found` })
+      )
+    })
+  })
+}) {}
+```
+
+Why this style is useful:
+
+- the implementation and inferred API stay together
+- TypeScript derives the service shape automatically
+- it avoids repeating the same method signatures twice
+
+Prefer this style when:
+
+- the implementation is small and obvious
+- the explicit service shape would only duplicate the implementation
+
+Prefer the explicit generic shape when:
+
+- you want the contract stated before the implementation
+- the API surface should be emphasized separately from the implementation
 
 ## Service Example
 
@@ -154,6 +200,51 @@ Best practice:
 - use `yield* Service` or `Effect.service(Service)` inside business logic
 - do not manually thread service implementations through function arguments when they are real application dependencies
 
+## Service Encapsulation
+
+Prefer keeping service access inside the business operation that needs it rather than exporting thin accessor wrappers for every method.
+
+Avoid this pattern:
+
+```ts
+export const createTodo = Effect.fn(function*(title: string) {
+  const todos = yield* TodoService
+  return yield* todos.create(title)
+})
+```
+
+Why this is usually a bad pattern:
+
+- it leaks the service dependency into a second public API layer
+- it encourages a redundant accessor function per service method
+- it spreads dependency access patterns across the codebase
+- it weakens service encapsulation instead of improving it
+
+Prefer one of these patterns instead:
+
+1. Put the real business logic in a function that uses the service internally because it adds behavior beyond simple forwarding.
+2. Expose the service itself and call its methods from the module that owns the workflow.
+3. If you need a public operation, make it a real business operation, not a trivial alias of one service method.
+
+Good:
+
+```ts
+export const completeTodo = Effect.fn("completeTodo")(function*(id: number) {
+  const todos = yield* TodoService
+  const todo = yield* todos.getById(id)
+  if (todo.completed) {
+    return todo
+  }
+  return yield* todos.setCompleted(id, true)
+})
+```
+
+This is good because:
+
+- the exported function represents a business operation
+- the service remains an internal dependency of that operation
+- the function adds behavior rather than just forwarding one method call
+
 ## Layers
 
 ## What A Layer Is
@@ -194,7 +285,7 @@ class Config extends Context.Service<Config, {
   readonly apiBaseUrl: string
 }>()("Config") {}
 
-const UserRepoLive = Layer.effect(UserRepo)(
+const UserRepoLayer = Layer.effect(UserRepo)(
   Effect.gen(function*() {
     const config = yield* Config
 
@@ -269,15 +360,15 @@ class UserRepo extends Context.Service<UserRepo, {
   readonly getById: (id: string) => Effect.Effect<{ id: string; name: string }>
 }>()("UserRepo") {}
 
-const ConfigLive = Layer.succeed(Config)({
+const ConfigLayer = Layer.succeed(Config)({
   apiBaseUrl: "https://api.example.com"
 })
 
-const LoggerLive = Layer.succeed(Logger)({
+const LoggerLayer = Layer.succeed(Logger)({
   log: (message) => Effect.sync(() => console.log(message))
 })
 
-const UserRepoLive = Layer.effect(UserRepo)(
+const UserRepoLayer = Layer.effect(UserRepo)(
   Effect.gen(function*() {
     const config = yield* Config
     const logger = yield* Logger
@@ -299,8 +390,8 @@ Use `Layer.mergeAll` to combine outputs of independent layers.
 
 ```ts
 const Dependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive
+  ConfigLayer,
+  LoggerLayer
 )
 ```
 
@@ -317,16 +408,16 @@ Semantics:
 
 Important:
 
-- `Layer.mergeAll(ConfigLive, UserRepoLive)` is wrong if `UserRepoLive` requires `Config` and `Logger`
-- `mergeAll` does not satisfy `UserRepoLive`'s requirements
+- `Layer.mergeAll(ConfigLayer, UserRepoLayer)` is wrong if `UserRepoLayer` requires `Config` and `Logger`
+- `mergeAll` does not satisfy `UserRepoLayer`'s requirements
 - it only places both layers side by side in the output graph
 
 Correct pattern:
 
 ```ts
 const Dependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive
+  ConfigLayer,
+  LoggerLayer
 )
 ```
 
@@ -336,16 +427,16 @@ Use `Layer.provide` to satisfy a target layer's dependencies with another layer,
 
 ```ts
 const Dependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive
+  ConfigLayer,
+  LoggerLayer
 )
 
-const UserRepoReady = Layer.provide(UserRepoLive, Dependencies)
+const UserRepoLayerReady = Layer.provide(UserRepoLayer, Dependencies)
 ```
 
 Interpretation:
 
-- `UserRepoLive` requires `Config` and `Logger`
+- `UserRepoLayer` requires `Config` and `Logger`
 - `Dependencies` provides those dependencies
 - the resulting layer provides only `UserRepo`
 - `Config` and `Logger` are used for construction but are not kept in the final output
@@ -359,7 +450,7 @@ const program = Effect.gen(function*() {
   const repo = yield* UserRepo
   return yield* repo.getById("u_123")
 }).pipe(
-  Effect.provide(UserRepoReady)
+  Effect.provide(UserRepoLayerReady)
 )
 ```
 
@@ -369,16 +460,16 @@ Use `provideMerge` when you want to satisfy dependencies and retain both the dep
 
 ```ts
 const Dependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive
+  ConfigLayer,
+  LoggerLayer
 )
 
-const AppLayer = Layer.provideMerge(UserRepoLive, Dependencies)
+const AppLayer = Layer.provideMerge(UserRepoLayer, Dependencies)
 ```
 
 Interpretation:
 
-- `UserRepoLive` still gets `Config` and `Logger`
+- `UserRepoLayer` still gets `Config` and `Logger`
 - the resulting layer provides `UserRepo`, `Config`, and `Logger`
 
 This is useful for assembling larger application layers incrementally, especially when downstream code still needs access to the dependencies.
@@ -427,19 +518,19 @@ Good pattern:
 
 ```ts
 const UserDependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive
+  ConfigLayer,
+  LoggerLayer
 )
 
-const UserLayer = Layer.provide(UserRepoLive, UserDependencies)
+const UserLayer = Layer.provide(UserRepoLayer, UserDependencies)
 
 const BillingDependencies = Layer.mergeAll(
-  ConfigLive,
-  LoggerLive,
-  DatabaseLive
+  ConfigLayer,
+  LoggerLayer,
+  DatabaseLayer
 )
 
-const BillingLayer = Layer.provide(BillingLive, BillingDependencies)
+const BillingLayer = Layer.provide(BillingServiceLayer, BillingDependencies)
 
 const AppLayer = Layer.mergeAll(
   UserLayer,
@@ -463,8 +554,8 @@ Avoid this style when a clearer local name would help:
 ```ts
 const AppLayer = Layer.provide(
   Layer.mergeAll(
-    Layer.provide(UserRepoLive, Layer.mergeAll(ConfigLive, LoggerLive)),
-    Layer.provide(BillingLive, Layer.mergeAll(ConfigLive, LoggerLive, DatabaseLive)),
+    Layer.provide(UserRepoLayer, Layer.mergeAll(ConfigLayer, LoggerLayer)),
+    Layer.provide(BillingServiceLayer, Layer.mergeAll(ConfigLayer, LoggerLayer, DatabaseLayer)),
     HttpLayer
   ),
   Telemetry
@@ -484,7 +575,7 @@ Use `flatMap` when the next layer depends on the actual constructed service valu
 Example:
 
 ```ts
-const UserRepoFromConfig = Layer.flatMap(ConfigLive, (config) =>
+const UserRepoLayerFromConfig = Layer.flatMap(ConfigLayer, (config) =>
   Layer.succeed(UserRepo)({
     getById: (id) => Effect.succeed({ id, name: config.apiBaseUrl })
   })
@@ -525,7 +616,7 @@ const loadUser = (userId: string) =>
     const repo = yield* UserRepo
     return yield* repo.getById(userId)
   }).pipe(
-    Effect.provide(UserRepoLive)
+    Effect.provide(UserRepoLayer)
   )
 ```
 
@@ -595,7 +686,7 @@ Use `Effect.provide` to satisfy an effect's dependencies with a layer or context
 
 ```ts
 const program = loadUser("u_123").pipe(
-  Effect.provide(UserRepoReady)
+  Effect.provide(UserRepoLayerReady)
 )
 ```
 
@@ -649,6 +740,21 @@ If construction has dependencies or effects, represent it as a layer.
 
 Avoid manually grabbing dependencies and assembling concrete objects all over the codebase.
 
+## 2.5 Prefer Effect-native integrations over raw runtime clients
+
+When Effect already provides a module for a capability, prefer the Effect-native integration over directly embedding a raw runtime client in service code.
+
+Examples:
+
+- prefer `effect/unstable/sql` modules over directly coupling business services to native SQL driver APIs
+- prefer Effect HTTP modules over direct ad hoc request clients when the project is already using Effect HTTP abstractions
+
+Why:
+
+- resource handling, tracing, and errors stay inside the Effect model
+- integrations compose better with layers and services
+- observability and transactions are easier to keep consistent
+
 ## 3. Keep business logic abstract over implementations
 
 Business functions should require services, not construct them.
@@ -684,8 +790,8 @@ Compose major application layers once near the boundary.
 
 Good pattern:
 
-- define `ConfigLive`
-- define `UserRepoLive`
+- define `ConfigLayer`
+- define `UserRepoLayer`
 - define `Dependencies = Layer.mergeAll(...)`
 - define `AppLayer` separately with `Layer.provide(...)` or `Layer.provideMerge(...)`
 - provide `AppLayer` to the top-level program
@@ -743,11 +849,11 @@ class UserRepo extends Context.Service<UserRepo, {
   readonly getById: (id: string) => Effect.Effect<{ id: string; name: string }>
 }>()("UserRepo") {}
 
-const ConfigLive = Layer.succeed(Config)({
+const ConfigLayer = Layer.succeed(Config)({
   apiBaseUrl: "https://api.example.com"
 })
 
-const UserRepoLive = Layer.effect(UserRepo)(
+const UserRepoLayer = Layer.effect(UserRepo)(
   Effect.gen(function*() {
     const config = yield* Config
 
@@ -761,9 +867,9 @@ const UserRepoLive = Layer.effect(UserRepo)(
   })
 )
 
-const Dependencies = Layer.mergeAll(ConfigLive)
+const Dependencies = Layer.mergeAll(ConfigLayer)
 
-const AppLayer = Layer.provide(UserRepoLive, Dependencies)
+const AppLayer = Layer.provide(UserRepoLayer, Dependencies)
 ```
 
 ## Pattern: provide at the top level
