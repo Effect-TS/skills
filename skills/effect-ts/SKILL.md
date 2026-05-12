@@ -155,9 +155,11 @@ Install additional `@effect/*` packages only when the user task actually needs t
 - Never use `any`.
 - Never use `as` casts.
 - Never use unsafe type assertions or escape hatches.
+- Never use `namespace`.
 - Prefer correct typing, schema-driven decoding, narrowing, and proper generic constraints instead of forcing types.
 - If a value comes from an external boundary, validate or decode it instead of asserting its type.
 - If a type is hard to express, simplify the design or introduce a properly typed helper instead of using unsafe TypeScript.
+- For layers, do not hide them inside `namespace` blocks. Prefer either `static` members on the service class or plain exported layer constants.
 
 ### Code Quality
 
