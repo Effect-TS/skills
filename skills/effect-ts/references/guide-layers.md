@@ -804,6 +804,112 @@ That is usually what you want.
 
 Use `Layer.fresh` only when you intentionally need to bypass sharing and rebuild the layer.
 
+## 7.5 Understand Layer Memoization
+
+Layers are memoized by reference.
+
+That means:
+
+- reusing the same layer value preserves memoization and sharing
+- creating a new layer value creates a new memoization identity
+
+Because of this, functions that return layers should be avoided unless they are absolutely necessary.
+
+Prefer plain named layer constants over layer factory functions.
+
+Only use a function returning a layer when:
+
+- the layer genuinely depends on runtime parameters
+- the caller truly needs distinct configurations or instances
+- a constant layer value cannot express the construction cleanly
+
+Even in those cases, call the function once during construction and reuse the resulting layer value.
+
+### Function Dependencies Should Stay Unprovided
+
+If a dependency of a layer is itself represented by a function that returns a layer, do not call that function locally just to satisfy the dependency.
+
+Instead, leave that dependency unprovided and let it be supplied at the edge.
+
+Bad pattern:
+
+```ts
+const UserLayer = Layer.provide(UserRepoLayer, makeDatabaseLayer(config))
+```
+
+Why this is bad:
+
+- it creates a fresh layer reference locally
+- it breaks or weakens memoization and sharing assumptions
+- it hides an important construction dependency inside subsystem wiring
+- it makes the final application graph harder to understand
+
+Preferred pattern:
+
+```ts
+const UserLayer = UserRepoLayer
+
+const DatabaseLayer = makeDatabaseLayer(config)
+
+const AppLayer = Layer.provideMerge(UserLayer, DatabaseLayer)
+```
+
+More generally:
+
+- if a layer depends on a parameterized layer factory, keep that dependency in the required environment when possible
+- construct the concrete parameterized layer once at the outer boundary
+- provide it only at the edge where the full application graph is assembled
+
+Rule:
+
+- do not call layer-producing dependency functions deep inside subsystem composition
+- keep those dependencies unprovided until the edge
+- provide the concrete layer once in the final top-level assembly
+
+Bad pattern:
+
+```ts
+const makeDatabaseLayer = () => Layer.effect(DatabaseService)(/* ... */)
+
+const AppLayer = Layer.mergeAll(
+  makeDatabaseLayer(),
+  makeDatabaseLayer()
+)
+```
+
+Why this is bad:
+
+- each call creates a distinct layer reference
+- memoization does not apply across those distinct references
+- the underlying resource or service may be constructed more than once
+- sharing assumptions become incorrect
+
+Preferred pattern:
+
+```ts
+const DatabaseLayer = makeDatabaseLayer()
+
+const AppLayer = Layer.mergeAll(
+  DatabaseLayer,
+  OtherLayer
+)
+```
+
+Rule:
+
+- avoid layer-producing functions unless they are truly necessary
+- if a function returns a layer, call it once during construction and bind the result to a named constant
+- reuse that layer value everywhere else
+
+This is especially important for:
+
+- database layers
+- HTTP client layers
+- telemetry layers
+- queues, workers, and other resource-owning services
+
+If you intentionally need a distinct instance, make that explicit with a new layer value or `Layer.fresh`, rather than accidentally creating multiple instances by repeatedly calling a layer factory.
+
 ## 8. Treat `Layer.orDie` carefully
 
 `Layer.orDie` converts layer construction failures into defects.
