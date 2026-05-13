@@ -78,6 +78,8 @@ When the task touches one of these areas, consult the matching guide before impl
 - `./references/guide-error-handling.md` for defining errors, schema-based errors, failure handling, defects, and interrupts
 - `./references/guide-layers.md` for services, layer construction, composition, and provisioning patterns
 - `./references/guide-observability.md` for `Effect.fn`, spans, logging, metrics, and telemetry wiring
+- `./references/guide-retries.md` for retry policies, retry conditions, fallback strategies, and `ExecutionPlan`
+- `./references/guide-schedule.md` for retries, repeats, backoff, polling, cron, and schedule composition
 - `./references/guide-schema.md` for schema design, transformations, unions, recursion, opaque/branded types, and schema best practices
 - `./references/guide-sql.md` for Effect SQL usage, transactions, resolvers, schema-aware SQL, and migrations
 - `./references/guide-testing.md` for detailed `@effect/vitest` usage, layered test setup, property tests, and test services
@@ -181,6 +183,8 @@ When providing solutions, explain the Effect concepts being used and why they fi
 - `./references/guide-error-handling.md`
 - `./references/guide-layers.md`
 - `./references/guide-observability.md`
+- `./references/guide-retries.md`
+- `./references/guide-schedule.md`
 - `./references/guide-schema.md`
 - `./references/guide-sql.md`
 - `./references/guide-testing.md`

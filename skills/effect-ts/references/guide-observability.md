@@ -412,6 +412,212 @@ Why:
 - observability is configured once at the boundary
 - spans, logs, and metrics remain consistent across the app
 
+## OpenTelemetry JS Framework Integration
+
+The vendored repo includes a real integration layer for the OpenTelemetry JavaScript ecosystem in `@effect/opentelemetry`.
+
+This is the preferred integration path when the application needs to participate in the standard OpenTelemetry JS framework, exporters, and SDKs.
+
+Relevant modules:
+
+- `./.repos/effect/packages/opentelemetry/src/NodeSdk.ts`
+- `./.repos/effect/packages/opentelemetry/src/Tracer.ts`
+- `./.repos/effect/packages/opentelemetry/src/Metrics.ts`
+- `./.repos/effect/packages/opentelemetry/src/Logger.ts`
+- `./.repos/effect/packages/opentelemetry/src/Resource.ts`
+- `./.repos/effect/packages/opentelemetry/src/WebSdk.ts`
+
+### Preferred Integration Model
+
+Use `@effect/opentelemetry` layers to bridge Effect observability into OpenTelemetry JS.
+
+Do not manually wire OpenTelemetry SDK objects inside business code.
+
+Prefer:
+
+- configuring tracer, metrics, logger, and resource layers once
+- composing them into the application layer graph
+- keeping business code written against Effect tracing, logging, and metrics APIs
+
+This means:
+
+- application code should keep using `Effect.fn`, `Effect.withSpan`, `Effect.log*`, and Effect metrics
+- OpenTelemetry JS should be introduced at the infrastructure layer, not inside domain operations
+
+### `NodeSdk.layer`
+
+`NodeSdk.layer(...)` is the main Node.js integration entrypoint.
+
+From the vendored source, it accepts a configuration that can include:
+
+- span processors
+- tracer config
+- metric readers
+- temporality preference
+- log record processors
+- logger provider config
+- resource information such as service name and version
+- shutdown timeout
+
+It then builds and merges:
+
+- resource layer
+- tracer layer
+- metrics layer
+- logger layer
+
+This makes it the preferred high-level integration for Node applications.
+
+### Resource Configuration
+
+OpenTelemetry JS integration should define resource metadata explicitly.
+
+From `NodeSdk.layer`, the supported resource configuration includes:
+
+- `serviceName`
+- `serviceVersion`
+- additional attributes
+
+This is important because tracer and logger setup depend on the configured resource.
+
+Best practice:
+
+- always provide a meaningful service name
+- provide service version when available
+- use resource attributes for stable deployment or environment metadata
+
+### Tracing Integration
+
+The `Tracer` module bridges Effect spans into OpenTelemetry spans.
+
+Important integration points from the vendored source:
+
+- `Tracer.layer`
+- `Tracer.layerGlobal`
+- `Tracer.layerGlobalProvider`
+- `Tracer.currentOtelSpan`
+- `Tracer.makeExternalSpan`
+
+Use these when:
+
+- you need Effect tracing to export through OpenTelemetry JS
+- you need to continue or bridge external trace context
+- you need access to the current OpenTelemetry span object
+
+Best practice:
+
+- keep creating spans with Effect APIs in application code
+- use the OpenTelemetry tracer layer to export and bridge them
+- use `makeExternalSpan` or parent-span wiring only at integration boundaries
+
+### Metrics Integration
+
+The `Metrics` module connects Effect metrics to OpenTelemetry JS metric readers.
+
+Important details from the vendored implementation:
+
+- `Metrics.layer(...)` registers a producer against one or more metric readers
+- it supports temporality preferences:
+  - `cumulative`
+  - `delta`
+- it handles shutdown through scoped layer cleanup
+
+Best practice:
+
+- choose temporality based on the backend
+- configure metric readers in the telemetry layer
+- keep application code focused on recording Effect metrics, not exporter mechanics
+
+### Logger Integration
+
+The `Logger` module connects Effect logging to OpenTelemetry JS logs.
+
+Important details from the vendored implementation:
+
+- it maps Effect log levels to OpenTelemetry severity numbers
+- it includes fiber ID, span context, log annotations, and log span timing in emitted attributes
+- `Logger.layer({ mergeWithExisting })` can merge with or replace existing application loggers
+
+Best practice:
+
+- prefer merging with existing loggers unless there is a strong reason to replace them
+- use Effect log annotations and log spans so the OpenTelemetry logger receives structured context automatically
+
+### Shutdown And Lifecycle
+
+The vendored layers use scoped acquisition and release for tracer providers, metric readers, and logger providers.
+
+This is the correct lifecycle model.
+
+Do not manually call provider shutdown methods from arbitrary business logic.
+
+Instead:
+
+- let the OpenTelemetry layers own provider lifecycle
+- compose them into the application layer graph
+- let the runtime or outer layer scope manage shutdown
+
+### External Trace Context
+
+When integrating with frameworks or inbound protocols that already carry trace context, prefer using the OpenTelemetry integration helpers rather than hand-rolling context propagation.
+
+The vendored tracer module provides:
+
+- `makeExternalSpan`
+- `currentOtelSpan`
+
+Use these only at integration boundaries such as:
+
+- HTTP adapters
+- RPC adapters
+- worker or queue adapters
+
+Keep business operations oblivious to propagation mechanics.
+
+### Recommended Pattern
+
+Preferred architecture:
+
+1. business code uses Effect observability APIs
+2. infrastructure composes `@effect/opentelemetry` layers
+3. the final app layer provides telemetry once at the top level
+
+Example shape:
+
+```ts
+const TelemetryLayer = NodeSdk.layer(() => ({
+  resource: {
+    serviceName: "todo-service",
+    serviceVersion: "1.0.0"
+  },
+  spanProcessor: mySpanProcessor,
+  metricReader: myMetricReader,
+  logRecordProcessor: myLogProcessor
+}))
+
+const AppLayer = Layer.mergeAll(
+  DomainLayer,
+  HttpLayer
+).pipe(
+  Layer.provide(TelemetryLayer)
+)
+```
+
+This keeps:
+
+- app code portable
+- OTel JS setup centralized
+- shutdown semantics correct
+- exported spans, logs, and metrics aligned
+
+### Anti-Patterns
+
+- constructing OpenTelemetry SDK clients directly inside business services
+- mixing manual exporter setup into domain code
+- bypassing Effect logging and tracing APIs in normal business operations
+- scattering provider shutdown logic across the application
+- configuring telemetry separately in many subsystems instead of one top-level layer
+
 ## Anti-Patterns
 
 ### Anti-Pattern: business logic built from anonymous `Effect.gen` functions everywhere
