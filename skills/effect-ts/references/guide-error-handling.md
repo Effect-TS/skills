@@ -218,6 +218,113 @@ Strong examples:
 
 These are good reference points when the error contract matters externally.
 
+## Wrapping Foreign Or Generic Errors
+
+When an error comes from a library, runtime API, or generic `Error`, prefer wrapping it in a typed error instead of leaking the foreign error directly through your domain or protocol boundary.
+
+This is a very common pattern in the vendored repo.
+
+Good examples:
+
+- `./.repos/effect/packages/effect/src/unstable/sql/SqlError.ts`
+- `./.repos/effect/packages/effect/src/unstable/rpc/RpcClientError.ts`
+- `./.repos/effect/packages/effect/src/unstable/socket/Socket.ts`
+- `./.repos/effect/packages/effect/src/unstable/workers/WorkerError.ts`
+- `./.repos/effect/packages/effect/src/unstable/persistence/Redis.ts`
+
+### Preferred Pattern
+
+Wrap the foreign error in a schema-backed typed error and preserve the original error in a `cause` field.
+
+Prefer using:
+
+- `Schema.Defect` when you want to preserve a generic encoded defect
+- `Schema.DefectWithStack` when the stack should be preserved in the schema contract
+
+Example:
+
+```ts
+import { Effect, Schema } from "effect"
+
+class TodoStorageError extends Schema.TaggedErrorClass<TodoStorageError>()(
+  "TodoStorageError",
+  {
+    operation: Schema.String,
+    cause: Schema.Defect
+  }
+) {}
+
+const makeStorageError = (operation: string) => (cause: unknown) =>
+  new TodoStorageError({
+    operation,
+    cause
+  })
+
+const loadTodo = (id: number) =>
+  Effect.try({
+    try: () => someLibraryCall(id),
+    catch: makeStorageError("loadTodo")
+  })
+```
+
+When stack preservation matters in the encoded schema, prefer:
+
+```ts
+class WorkerFailure extends Schema.TaggedErrorClass<WorkerFailure>()(
+  "WorkerFailure",
+  {
+    cause: Schema.DefectWithStack
+  }
+) {}
+```
+
+### Why This Is Preferred
+
+- the application still exposes a typed error contract
+- the original foreign failure is preserved for diagnostics
+- schema-aware transports can encode and decode the failure shape
+- business code does not become coupled to a raw library error type
+
+### When To Use This Pattern
+
+Use it when:
+
+- a third-party library throws or rejects with `Error`
+- a runtime API returns generic failures
+- a lower-level subsystem failure should be surfaced through a typed domain or protocol error
+- you need to preserve the underlying failure for debugging without leaking the foreign type as the public error contract
+
+### `Schema.Defect` vs `Schema.DefectWithStack`
+
+Prefer `Schema.Defect` by default.
+
+Use `Schema.DefectWithStack` when:
+
+- stack information is part of the intended encoded error contract
+- the error is primarily infrastructural or diagnostic
+- the downstream consumer benefits from the preserved stack
+
+### Avoid This Anti-Pattern
+
+Avoid exposing raw generic errors directly as the application error contract.
+
+Bad:
+
+```ts
+const loadTodo = (id: number) =>
+  Effect.try({
+    try: () => someLibraryCall(id),
+    catch: (cause) => cause as Error
+  })
+```
+
+Why this is bad:
+
+- the error channel loses a stable typed contract
+- the code depends on unsafe assertions
+- transport and schema integration become weaker
+- callers must understand foreign error shapes instead of your own typed error model
+
 ## Handling Failures
 
 ### Handle specific tagged errors with `Effect.catchTag`
