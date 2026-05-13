@@ -50,6 +50,72 @@ Typical boundaries:
 - persisted data
 - domain errors
 
+## What A Schema Actually Is
+
+A schema is not just a static shape.
+
+It is a contract between:
+
+- the decoded in-memory value you want to work with
+- the encoded representation that comes from or goes to some boundary
+
+This is the most important thing many implementations get wrong.
+
+Do not think of Schema as “a typed struct definition.”
+Think of it as:
+
+- validation
+- decoding
+- encoding
+- transformation
+- metadata
+- reuse across boundaries
+
+Because of that, schemas should not be duplicated unless there is a real semantic difference.
+
+If two schemas describe the same logical model but differ only because one boundary encodes a field differently, prefer one schema with transformations instead of two parallel schemas.
+
+## Avoid Duplicating Schemas
+
+Do not create multiple parallel schemas for the same logical entity unless they truly represent different models.
+
+Bad pattern:
+
+```ts
+const Todo = Schema.Struct({
+  id: Schema.Number,
+  title: Schema.String,
+  completed: Schema.Boolean
+})
+
+const TodoSql = Schema.Struct({
+  id: Schema.Number,
+  title: Schema.String,
+  completed: Schema.BooleanFromBit
+})
+```
+
+This is usually a sign that transformations are not being used properly.
+
+If the model is still “Todo”, do not define a second schema just because one boundary stores `completed` as a bit.
+
+Prefer deriving or transforming the representation instead.
+
+Why duplication is bad:
+
+- the same model is now maintained in multiple places
+- fields drift over time
+- boundary logic gets copied instead of centralized
+- refactors become error-prone
+
+Only duplicate schemas when there is a real semantic difference, for example:
+
+- a creation payload really is a different model from a persisted entity
+- a public API contract intentionally differs from an internal domain model
+- a projection or partial view is intentionally a different type
+
+If the difference is only encoding, use a transformation.
+
 ## Prefer `Class` Variants Over `Struct` Variants When Possible
 
 When a schema represents a named domain model, reusable payload, or long-lived API shape, prefer `Schema.Class`, `Schema.TaggedClass`, or `Schema.TaggedErrorClass` over a bare `Schema.Struct`.
@@ -98,6 +164,28 @@ Good rule of thumb:
 - reusable error payload: `TaggedErrorClass`
 - small inline object shape: `Struct`
 
+## One Logical Model, Multiple Representations
+
+The right Schema mindset is:
+
+- one logical model
+- multiple encoded forms when needed
+- transformations connecting them
+
+For example, a `Todo` may be:
+
+- a boolean in memory
+- a bit in SQL
+- a string in some external API
+
+That does not automatically mean you need three separate top-level schemas.
+
+Prefer:
+
+- one main schema for the logical model
+- transformed field schemas or transformed object schemas for boundary-specific encoding
+- derived request/result schemas when the shape is actually different
+
 ## Common Schema Building Blocks
 
 Common primitives and collections used throughout the repo:
@@ -134,6 +222,43 @@ class Product extends Schema.Class<Product>("Product")({
   price: Schema.Number
 }) {}
 ```
+
+### Constructor Rule
+
+When constructing schema classes, prefer `X.make(...)` over `new X(...)`.
+
+Prefer:
+
+```ts
+const todo = Todo.make({
+  id: 1,
+  title: "write docs",
+  completed: false
+})
+```
+
+Over:
+
+```ts
+const todo = new Todo({
+  id: 1,
+  title: "write docs",
+  completed: false
+})
+```
+
+Why:
+
+- it is the intended schema-class construction style
+- it makes schema-backed construction explicit
+- it keeps the codebase consistent
+- it reads better across `Class`, `TaggedClass`, and `TaggedErrorClass`
+
+Use this rule consistently for:
+
+- `Schema.Class`
+- `Schema.TaggedClass`
+- `Schema.TaggedErrorClass`
 
 ### `Schema.TaggedClass`
 
@@ -237,6 +362,10 @@ Transformations are one of the most important Schema features.
 
 Use them when decoded and encoded shapes differ.
 
+This is the main tool that avoids needless schema duplication.
+
+If your instinct is “I need another schema because this boundary encodes the same value differently”, stop and first ask whether this should be one schema with a transformation instead.
+
 ### `Schema.decodeTo`
 
 Use `decodeTo` when you want one schema to decode into another schema's type.
@@ -281,6 +410,42 @@ Use this when:
 - decoding can fail with structured issues
 - encoding also needs logic beyond identity
 
+## Field-Level Transformations
+
+Very often, the right answer is not a second object schema but a transformed field schema.
+
+Example shape:
+
+```ts
+const Completed = Schema.BooleanFromBit
+
+const Todo = Schema.Struct({
+  id: Schema.Number,
+  title: Schema.String,
+  completed: Completed
+})
+```
+
+In this pattern:
+
+- the logical model still has `completed: boolean`
+- the encoded SQL-facing representation can still be a bit
+- the transformation lives at the field where it belongs
+
+This is usually better than defining `Todo` and `TodoSql` as separate object schemas.
+
+## Object-Level Transformations
+
+Use object-level transformations when the whole object encoding differs, not just one field.
+
+Good use cases:
+
+- external keys differ from internal keys
+- several fields need coordinated transformation
+- the encoded shape is a structurally different representation of the same model
+
+Still prefer a single logical schema plus a transformation pipeline over maintaining multiple duplicated top-level schemas.
+
 ## Rename Keys
 
 Schema supports key renaming through struct transformations.
@@ -296,6 +461,8 @@ Preferred pattern:
 
 - keep the internal decoded shape idiomatic
 - use schema-level transformation or field-mapping to adapt external keys
+
+This is another example of avoiding duplication. If the only difference is key naming, do not define a second schema just to rename fields manually later.
 
 In practice, use struct field mapping helpers and transformation composition rather than manual post-parse object rewriting.
 
@@ -343,6 +510,11 @@ Good examples:
 - mutable representations for specific adapters
 
 Prefer deriving from one source schema rather than maintaining parallel copies.
+
+This is the second major tool for avoiding duplication:
+
+- use transformations when encoded and decoded representations differ
+- use derivation when one schema is a subset, superset, or variation of another
 
 ## Constraints And Validation
 
@@ -424,15 +596,19 @@ Patterns visible in the vendored repo:
 1. Prefer `Class` variants over plain `Struct` for named reusable schemas.
 2. Prefer tagged variants for unions and errors.
 3. Prefer `optionalKey` for optional object properties.
-4. Prefer schema-level transformations over ad hoc post-parse object rewriting.
-5. Prefer deriving schema variants with `pick`, `omit`, `partial`, and `mutable` instead of duplicating definitions.
-6. Prefer branded or opaque types for important domain identifiers.
-7. Prefer `decodeUnknownEffect` in application code.
-8. Keep internal decoded shapes idiomatic and use schema transforms for external representation differences.
+4. Do not duplicate schemas unless there is a real semantic difference.
+5. Prefer schema-level transformations over ad hoc post-parse object rewriting.
+6. Prefer deriving schema variants with `pick`, `omit`, `partial`, and `mutable` instead of duplicating definitions.
+7. Prefer field-level transformations when only a field encoding differs.
+8. Prefer branded or opaque types for important domain identifiers.
+9. Prefer `decodeUnknownEffect` in application code.
+10. Keep internal decoded shapes idiomatic and use schema transforms for external representation differences.
 
 ## Anti-Patterns
 
 - using plain `Struct` for every reusable domain model even when `Class` would give a clearer named type
+- duplicating whole schemas when only one field encoding differs
+- creating `Foo` and `FooSql` schemas for the same logical model when a transformation would do
 - using `optional` when you actually want an optional key
 - duplicating near-identical schemas instead of deriving variants
 - rewriting keys manually after decode instead of using schema transformations
