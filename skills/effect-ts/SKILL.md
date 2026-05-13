@@ -74,12 +74,13 @@ When you need to discover available Effect modules, packages, or capabilities, s
 
 When the task touches one of these areas, consult the matching guide before implementing:
 
-- `./references/guides-effect.md` for core `Effect` usage patterns, common constructors, composition, provisioning, and runtime boundaries
+- `./references/guide-effect.md` for core `Effect` usage patterns, common constructors, composition, provisioning, and runtime boundaries
 - `./references/guide-error-handling.md` for defining errors, schema-based errors, failure handling, defects, and interrupts
 - `./references/guide-layers.md` for services, layer construction, composition, and provisioning patterns
 - `./references/guide-observability.md` for `Effect.fn`, spans, logging, metrics, and telemetry wiring
 - `./references/guide-schema.md` for schema design, transformations, unions, recursion, opaque/branded types, and schema best practices
 - `./references/guide-sql.md` for Effect SQL usage, transactions, resolvers, schema-aware SQL, and migrations
+- `./references/guide-testing.md` for detailed `@effect/vitest` usage, layered test setup, property tests, and test services
 
 These guides should be treated as the default implementation guidance. Do not skip them and jump straight to `./.repos/effect` unless you need source-level confirmation or the guides do not answer the question.
 
@@ -176,10 +177,11 @@ When providing solutions, explain the Effect concepts being used and why they fi
 ## References
 
 - `./references/features.md`
-- `./references/guides-effect.md`
+- `./references/guide-effect.md`
 - `./references/guide-error-handling.md`
 - `./references/guide-layers.md`
 - `./references/guide-observability.md`
 - `./references/guide-schema.md`
 - `./references/guide-sql.md`
+- `./references/guide-testing.md`
 - `./references/setup.md`
