@@ -203,8 +203,8 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as SqlClient from "effect/unstable/sql/SqlClient"
 
-class TodoRepo extends Context.Service("TodoRepo", {
-  make: () => ({
+class TodoRepo extends Context.Service<TodoRepo>()("TodoRepo", {
+  make: Effect.succeed({
     getById: Effect.fn("TodoRepo.getById")(function*(id: number) {
       const sql = yield* SqlClient.SqlClient
       return yield* sql`SELECT id, title, completed FROM todos WHERE id = ${id}`

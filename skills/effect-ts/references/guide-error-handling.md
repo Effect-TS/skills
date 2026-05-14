@@ -69,7 +69,7 @@ class InvalidPayload extends Schema.TaggedErrorClass<InvalidPayload>()(
 ) {}
 
 const validate = Effect.fail(
-  new InvalidPayload({
+  InvalidPayload.make({
     field: "email",
     reason: "missing"
   })
@@ -255,7 +255,7 @@ class TodoStorageError extends Schema.TaggedErrorClass<TodoStorageError>()(
 ) {}
 
 const makeStorageError = (operation: string) => (cause: unknown) =>
-  new TodoStorageError({
+  TodoStorageError.make({
     operation,
     cause
   })

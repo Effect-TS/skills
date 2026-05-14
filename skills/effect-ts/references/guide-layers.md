@@ -100,11 +100,11 @@ class UserRepoError extends Schema.TaggedErrorClass<UserRepoError>()(
   }
 ) {}
 
-class UserRepo extends Context.Service("UserRepo", {
-  make: () => ({
+class UserRepo extends Context.Service<UserRepo>()("UserRepo", {
+  make: Effect.succeed({
     getById: Effect.fn("UserRepo.getById")(function*(id: string) {
       return yield* Effect.fail(
-        new UserRepoError({ message: `User ${id} not found` })
+        UserRepoError.make({ message: `User ${id} not found` })
       )
     })
   })

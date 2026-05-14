@@ -156,7 +156,7 @@ const ok = Effect.succeed(42)
 Use for expected typed failures.
 
 ```ts
-const notFound = Effect.fail(new UserNotFound({ userId: "u_123" }))
+const notFound = Effect.fail(UserNotFound.make({ userId: "u_123" }))
 ```
 
 ### `Effect.sync`
@@ -172,10 +172,16 @@ const buildConfig = Effect.sync(() => ({ retries: 3 }))
 Use for synchronous code that may throw.
 
 ```ts
+import { Effect, Schema } from "effect"
+
+class ParseError extends Schema.TaggedErrorClass<ParseError>()("ParseError", {
+  cause: Schema.Defect
+}) {}
+
 const parseJson = (input: string) =>
   Effect.try({
     try: () => JSON.parse(input),
-    catch: (cause) => new ParseError({ cause })
+    catch: (cause) => ParseError.make({ cause })
   })
 ```
 
@@ -184,10 +190,16 @@ const parseJson = (input: string) =>
 Use for Promise-returning APIs.
 
 ```ts
+import { Effect, Schema } from "effect"
+
+class FetchError extends Schema.TaggedErrorClass<FetchError>()("FetchError", {
+  cause: Schema.Defect
+}) {}
+
 const fetchText = (url: string) =>
   Effect.tryPromise({
     try: () => fetch(url).then((response) => response.text()),
-    catch: (cause) => new FetchError({ cause })
+    catch: (cause) => FetchError.make({ cause })
   })
 ```
 
