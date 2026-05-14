@@ -342,6 +342,109 @@ Important behavior in the vendored repo:
 - concurrent migration runs are guarded
 - each migration is logged and wrapped in a span
 
+### Concrete Migration Loader Example
+
+The runtime-specific SQL migrator packages expose `fromRecord(...)` to define migrations from an ordered record.
+
+Example shape:
+
+```ts
+import * as SqliteMigrator from "@effect/sql-sqlite-bun/SqliteMigrator"
+import * as Effect from "effect/Effect"
+
+const migrations = SqliteMigrator.fromRecord({
+  "1_create_todos": Effect.gen(function*() {
+    yield* sql`
+      CREATE TABLE todos (
+        id INTEGER PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        completed INTEGER NOT NULL DEFAULT 0
+      )
+    `.withoutTransform
+  }),
+  "2_add_todo_index": Effect.gen(function*() {
+    yield* sql`
+      CREATE INDEX todos_completed_idx ON todos (completed)
+    `.withoutTransform
+  })
+})
+```
+
+This matches the model used by the vendored migrator implementation:
+
+- each migration has a numeric prefix and descriptive name
+- each migration resolves to an `Effect`
+- migrations are ordered by ID
+
+### Running Migrations Directly
+
+Use the runtime-specific `run(...)` helper when you want a startup effect that runs migrations explicitly.
+
+Example shape:
+
+```ts
+import * as SqliteMigrator from "@effect/sql-sqlite-bun/SqliteMigrator"
+
+const runMigrations = SqliteMigrator.run({
+  loader: migrations
+})
+```
+
+This is a good fit when:
+
+- startup explicitly runs migrations before launching the main app
+- deployment tooling runs migrations as a separate command
+- you want migration results as an ordinary `Effect`
+
+The return value includes the applied migration IDs and names.
+
+### Running Migrations As A Layer
+
+Use the runtime-specific `layer(...)` helper when migrations should run as part of top-level infrastructure setup.
+
+Example shape:
+
+```ts
+import * as SqliteMigrator from "@effect/sql-sqlite-bun/SqliteMigrator"
+
+const MigrationLayer = SqliteMigrator.layer({
+  loader: migrations
+})
+```
+
+From the vendored packages, this is implemented as `Layer.effectDiscard(run(options))`.
+
+That means:
+
+- the layer performs the migration effect
+- it does not provide a new service of its own
+- it is intended to be composed into startup infrastructure
+
+### Concrete Startup Composition Example
+
+Preferred shape:
+
+```ts
+const SqlLayer = SqliteClient.layer({ filename: "todos.sqlite" })
+
+const MigrationLayer = SqliteMigrator.layer({
+  loader: migrations
+})
+
+const MigratedSqlLayer = Layer.merge(
+  SqlLayer,
+  MigrationLayer.pipe(Layer.provide(SqlLayer))
+)
+```
+
+This keeps the structure explicit:
+
+- one layer provides the SQL client
+- one layer runs migrations
+- the merged layer represents a migrated SQL environment
+
+If the same migrated SQL environment is reused in tests, create it once and reuse the layer value.
+
 ### Migration Best Practices
 
 - use stable numeric migration IDs
@@ -357,6 +460,12 @@ Good pattern:
 - construct the SQL layer
 - run migrations once at startup or deployment entry
 - then run the main application
+
+Concrete shapes:
+
+- separate startup effect: `SqliteMigrator.run({ loader })`
+- startup layer: `SqliteMigrator.layer({ loader })`
+- migrated environment layer: merge the SQL client layer with the migration layer provided by that client layer
 
 Avoid:
 
@@ -414,6 +523,8 @@ This keeps:
 - exporting one trivial accessor function per repository/service method
 - converting SQL errors to strings too early
 - bypassing `Migrator` when the project already uses Effect SQL
+- creating ad hoc migration effects without a stable loader shape when `fromRecord(...)` already fits the project
+- scattering migration execution across multiple subsystems instead of one explicit startup boundary
 
 ## Good Repo Examples To Study
 
