@@ -44,7 +44,7 @@ Avoid:
 
 - hand-written loops with mutable counters
 - inline `catch` plus recursive retry logic
-- resource fallback logic encoded as nested `catchAll` chains when `ExecutionPlan` is a better fit
+- resource fallback logic encoded as nested `catch` chains when `ExecutionPlan` is a better fit
 
 ## `Effect.retry`
 
@@ -418,7 +418,7 @@ const Plan = ExecutionPlan.make(
 - hand-writing retry recursion instead of using `Effect.retry`
 - embedding sleep and counters directly in business logic
 - using `ExecutionPlan` when a simple `Schedule` is enough
-- encoding provider fallback as a maze of nested `catchAll` branches
+- encoding provider fallback as a maze of nested `catch` branches
 - retrying indiscriminately without checking whether the failure is actually retryable
 
 ## Good Repo Examples To Study
