@@ -10,7 +10,7 @@ Choose one of these setup options before continuing:
 
 1. Add `https://github.com/Effect-TS/effect-smol` as a git subtree with squashed history at `./.repos/effect`
 2. Add `https://github.com/Effect-TS/effect-smol` as a git submodule at `./.repos/effect`
-3. Use `git clone` into `./.repos/effect`, ignore it via `.gitignore`, and add a prepare script that bootstraps it when missing
+3. Use `git clone` into `./.repos/effect`, ignore it via `.gitignore`, and add a prepare script that bootstraps it when missing outside CI
 
 ## Supported Options
 
@@ -37,7 +37,7 @@ Use this when the repository should avoid vendoring or submodule management, but
 - Repo path: `./.repos/effect`
 - Source: `https://github.com/Effect-TS/effect-smol`
 - Add `.repos/effect` to the repository `.gitignore`
-- Add a `prepare` task that clones the repo automatically when the directory is missing
+- Add a `prepare` task that clones the repo automatically when the directory is missing outside CI
 
 #### Concrete Shape
 
@@ -69,6 +69,10 @@ set -eu
 repo_dir=".repos/effect"
 repo_url="https://github.com/Effect-TS/effect-smol"
 
+if [ -n "${CI:-}" ]; then
+  exit 0
+fi
+
 if [ -d "$repo_dir/.git" ]; then
   exit 0
 fi
@@ -80,6 +84,7 @@ git clone "$repo_url" "$repo_dir"
 #### Notes
 
 - This keeps `./.repos/effect` available for local research without forcing it into version control
+- The script exits without cloning when `CI` is set to any non-empty value, so install, pack, publish, or CI/CD flows do not unexpectedly clone `./.repos/effect` into automation workspaces
 - The script is only responsible for ensuring the checkout exists; it does not update or reset an existing clone
 - If you choose this option, the setup task should add this exact script, wire it via `prepare`, and add `.repos/effect` to `.gitignore`
 
