@@ -7,6 +7,17 @@ description: Use this skill when migrating a codebase from Effect v3 to Effect v
 
 Drive an Effect v3 → v4 migration from the generated migration reference that ships in the Effect repo. Every rename, removal, and signature change is answered by upstream data — do not guess replacements.
 
+## Workflow
+
+Work through these steps in order; each one is detailed in the section named.
+
+1. **Set up and validate the local checkouts** — two shallow clones; verify any pre-existing `.repos/effect` before trusting it. See **Setup: Local Checkouts**.
+2. **Read `MIGRATION.md`** and `ls .repos/effect/migration/` for the background and guide index. See **Reading Order**.
+3. **Migrate `package.json`** — remove consolidated packages, align every remaining Effect package on one v4 version. Do this before type-checking, or the first run drowns in unresolved-import noise from packages that no longer exist. See **Repo-Level Changes**.
+4. **Run the project's type-check** (e.g. `tsc --noEmit`) to get the initial error inventory.
+5. **Iterate until the type-check is clean.** For each error, resolve the API through the lookup discipline — search `migration/v3-to-v4.md` for the symbol, escalate per **Reading Order** — then fix the call site. Never silence an error instead of resolving it; see **Hard Prohibitions**.
+6. **Finish** — type-check clean; run tests and report their outcome honestly (not a gate); write the final summary. See **Done Condition**.
+
 ## Setup: Local Checkouts
 
 The migration is driven from two shallow, single-branch clones of the canonical Effect repo:
