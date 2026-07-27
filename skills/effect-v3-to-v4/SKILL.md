@@ -34,11 +34,11 @@ If the origin points at `effect-smol`, or the version is not `4.x`, delete the d
 
 ## Reading Order
 
-1. **Front-load `MIGRATION.md` once** (`.repos/effect/MIGRATION.md`). It carries the background that is not per-API — the single shared version number, package consolidation into `effect`, the `effect/unstable/*` module system — plus an index of the per-topic guides. Also run `ls .repos/effect/migration/` to see every guide; the index may lag the directory.
+1. **Front-load `MIGRATION.md` once** (`.repos/effect/MIGRATION.md`).
 2. **`migration/v3-to-v4.md` — the first stop for every API.** The generated reference covers every removed or changed API. Search it (see below); never read it whole.
 3. **A per-topic guide** (`.repos/effect/migration/*.md`) when the mapping implies a rewrite rather than a rename — e.g. `Context.Tag` → `Context.Service` is a structural change, not a symbol swap. Reach these on demand from the `MIGRATION.md` index, not front-loaded.
 4. **v4 source** (`.repos/effect/packages/*/src/`, including `unstable/`) to confirm a replacement's real signature before writing code against it.
-5. **v3 source** (`.repos/effect-v3`) as escalation only — for entries like `` `X` -> `X` `` ("still exported in v4; adapt to the revised contract") or "re-check its Type/Encoded shape", where the symbol survived but changed and the old semantics matter.
+5. **v3 source** (`.repos/effect-v3`) as escalation only — for when unsure about the old v3 semantics.
 
 ## Never Read the Reference Doc Whole
 
