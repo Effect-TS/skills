@@ -26,6 +26,15 @@ The main Effect skill provides guidance for:
 
 It also expects a local vendored checkout of the Effect repo at `./.repos/effect` in the target project, and includes setup guidance for that workflow.
 
+### `effect-v3-to-v4`
+
+A bounded migration skill for upgrading a codebase from Effect v3 to Effect v4. It drives the migration from the generated `migration/v3-to-v4.md` reference in the Effect repo:
+
+- shallow local checkouts of the v4 (`main`) and v3 branches
+- search-only access to the migration reference (never read whole)
+- an escalation chain from reference doc to topic guides to v4/v3 source
+- repo-level guidance for package consolidation and version alignment
+
 ## Repository Layout
 
 ```text
@@ -34,6 +43,8 @@ skills/
     SKILL.md
     references/
       *.md
+  effect-v3-to-v4/
+    SKILL.md
 ```
 
 Conventions:
