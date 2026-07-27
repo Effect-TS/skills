@@ -1,6 +1,6 @@
 ---
 name: effect-v3-to-v4
-description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary.
+description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary, or when a v3 Effect API is missing, renamed, or has a changed signature after an upgrade. Also use it when imports from `@effect/platform`, `@effect/rpc`, `@effect/cluster`, or other consolidated packages fail to resolve against v4.
 ---
 
 # Effect v3 to v4 Migration
@@ -49,7 +49,7 @@ If the origin points at `effect-smol`, or the version is not `4.x`, delete the d
 2. **`migration/v3-to-v4.md` — the first stop for every API.** The generated reference covers every removed or changed API. Search it (see below); never read it whole.
 3. **A per-topic guide** (`.repos/effect/migration/*.md`) when the mapping implies a rewrite rather than a rename — e.g. `Context.Tag` → `Context.Service` is a structural change, not a symbol swap. Reach these on demand from the `MIGRATION.md` index, not front-loaded.
 4. **v4 source** (`.repos/effect/packages/*/src/`, including `unstable/`) to confirm a replacement's real signature before writing code against it.
-5. **v3 source** (`.repos/effect-v3`) as escalation only — for when unsure about the old v3 semantics.
+5. **v3 source** (`.repos/effect-v3`) as escalation only — for entries like `` `X` -> `X` `` ("still exported in v4; adapt to the revised contract"), where the symbol survived but changed and the old semantics matter.
 
 ## Never Read the Reference Doc Whole
 
@@ -92,6 +92,8 @@ Faithful per-API lookup alone still yields a broken `package.json`. Handle these
 ## Done Condition
 
 **The project type-checks against v4.** A v4 migration is fundamentally a type-level exercise; unresolved imports and changed signatures surface there and nowhere else. Run the project's type-check (e.g. `tsc --noEmit`) until clean.
+
+For APIs the reference maps to `` `none` ``: build the replacement when it is mechanical and behaviour-preserving (the entry states the alternative); stop and report when the gap forces a semantic or architectural choice.
 
 Running the test suite is recommended, and its outcome must be reported honestly — but it is **not** a gate. A repo mid-migration often has tests that cannot run for unrelated reasons; do not weaken tests to make them pass.
 
