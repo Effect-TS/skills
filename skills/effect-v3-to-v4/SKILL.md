@@ -1,6 +1,6 @@
 ---
 name: effect-v3-to-v4
-description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary, or when a v3 Effect API is missing, renamed, or has a changed signature after an upgrade. Also use it when imports from `@effect/platform`, `@effect/rpc`, `@effect/cluster`, or other consolidated packages fail to resolve against v4.
+description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary.
 ---
 
 # Effect v3 to v4 Migration
@@ -15,7 +15,7 @@ Work through these steps in order; each one is detailed in the section named.
 2. **Read `MIGRATION.md`** and `ls .repos/effect/migration/` for the background and guide index. See **Reading Order**.
 3. **Migrate `package.json`** — remove consolidated packages, align every remaining Effect package on one v4 version. Do this before type-checking, or the first run drowns in unresolved-import noise from packages that no longer exist. See **Repo-Level Changes**.
 4. **Run the project's type-check** (e.g. `tsc --noEmit`) to get the initial error inventory.
-5. **Iterate until the type-check is clean.** For each error, resolve the API through the lookup discipline — search `migration/v3-to-v4.md` for the symbol, escalate per **Reading Order** — then fix the call site. Never silence an error instead of resolving it; see **Hard Prohibitions**.
+5. **Iterate until the type-check is clean.** For each error, resolve the API through the lookup discipline — search `migration/v3-to-v4.md` for the symbol, escalate per **Reading Order** — then fix the call site, delegating per-file fixes to sub-agents per **Delegating to Sub-Agents**. Never silence an error instead of resolving it; see **Hard Prohibitions**.
 6. **Finish** — type-check clean; run tests and report their outcome honestly (not a gate); write the final summary. See **Done Condition**.
 
 ## Setup: Local Checkouts
@@ -49,7 +49,7 @@ If the origin points at `effect-smol`, or the version is not `4.x`, delete the d
 2. **`migration/v3-to-v4.md` — the first stop for every API.** The generated reference covers every removed or changed API. Search it (see below); never read it whole.
 3. **A per-topic guide** (`.repos/effect/migration/*.md`) when the mapping implies a rewrite rather than a rename — e.g. `Context.Tag` → `Context.Service` is a structural change, not a symbol swap. Reach these on demand from the `MIGRATION.md` index, not front-loaded.
 4. **v4 source** (`.repos/effect/packages/*/src/`, including `unstable/`) to confirm a replacement's real signature before writing code against it.
-5. **v3 source** (`.repos/effect-v3`) as escalation only — for entries like `` `X` -> `X` `` ("still exported in v4; adapt to the revised contract"), where the symbol survived but changed and the old semantics matter.
+5. **v3 source** (`.repos/effect-v3`) as escalation only — for when unsure about the old v3 semantics.
 
 ## Never Read the Reference Doc Whole
 
@@ -83,6 +83,15 @@ Faithful per-API lookup alone still yields a broken `package.json`. Handle these
 - **Version alignment.** All Effect ecosystem packages share one version number in v4. Every remaining `effect` / `@effect/*` dependency must be on the same matching version.
 - **Unstable modules.** Some functionality only exists under `effect/unstable/*` import paths (e.g. `effect/unstable/http`, `effect/unstable/rpc`). These are correct v4 imports — use them where the reference maps to them; they may receive breaking changes in minor releases.
 
+## Delegating to Sub-Agents
+
+Per-file migration work is context-hungry; do it in sub-agents so the main session's context survives the whole migration.
+
+- Spawn one sub-agent per file (or per module), giving it the specific v3 symbols to resolve in that file.
+- The sub-agent returns the edit and the mappings it used; the main session keeps the error inventory and the running summary.
+- Sub-agents inherit the same lookup discipline (**Reading Order**, the `rg` recipes) and **Hard Prohibitions**.
+- The reference doc is never read whole in a sub-agent either — a blown sub-agent context still costs the migration that file.
+
 ## Hard Prohibitions
 
 - **Never reintroduce a v3-shaped compatibility layer.** Writing a `v3-compat.ts` that re-exports old names makes type errors vanish and permanently freezes the codebase between versions. Migrate call sites to the v4 API.
@@ -92,8 +101,6 @@ Faithful per-API lookup alone still yields a broken `package.json`. Handle these
 ## Done Condition
 
 **The project type-checks against v4.** A v4 migration is fundamentally a type-level exercise; unresolved imports and changed signatures surface there and nowhere else. Run the project's type-check (e.g. `tsc --noEmit`) until clean.
-
-For APIs the reference maps to `` `none` ``: build the replacement when it is mechanical and behaviour-preserving (the entry states the alternative); stop and report when the gap forces a semantic or architectural choice.
 
 Running the test suite is recommended, and its outcome must be reported honestly — but it is **not** a gate. A repo mid-migration often has tests that cannot run for unrelated reasons; do not weaken tests to make them pass.
 
