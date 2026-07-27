@@ -1,6 +1,6 @@
 ---
 name: effect-v3-to-v4
-description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary, or when a v3 Effect API is missing, renamed, or has a changed signature after an upgrade. Also use it when imports from `@effect/platform`, `@effect/rpc`, `@effect/cluster`, or other consolidated packages fail to resolve against v4.
+description: Use this skill when migrating a codebase from Effect v3 to Effect v4, upgrading `effect` or any `@effect/*` package across the v3/v4 boundary.
 ---
 
 # Effect v3 to v4 Migration
@@ -34,7 +34,7 @@ If the origin points at `effect-smol`, or the version is not `4.x`, delete the d
 
 ## Reading Order
 
-1. **Front-load `MIGRATION.md` once** (`.repos/effect/MIGRATION.md`, ~83 lines). It carries the background that is not per-API — the single shared version number, package consolidation into `effect`, the `effect/unstable/*` module system — plus an index of the per-topic guides. Also run `ls .repos/effect/migration/` to see every guide; the index may lag the directory.
+1. **Front-load `MIGRATION.md` once** (`.repos/effect/MIGRATION.md`). It carries the background that is not per-API — the single shared version number, package consolidation into `effect`, the `effect/unstable/*` module system — plus an index of the per-topic guides. Also run `ls .repos/effect/migration/` to see every guide; the index may lag the directory.
 2. **`migration/v3-to-v4.md` — the first stop for every API.** The generated reference covers every removed or changed API. Search it (see below); never read it whole.
 3. **A per-topic guide** (`.repos/effect/migration/*.md`) when the mapping implies a rewrite rather than a rename — e.g. `Context.Tag` → `Context.Service` is a structural change, not a symbol swap. Reach these on demand from the `MIGRATION.md` index, not front-loaded.
 4. **v4 source** (`.repos/effect/packages/*/src/`, including `unstable/`) to confirm a replacement's real signature before writing code against it.
@@ -71,15 +71,6 @@ Faithful per-API lookup alone still yields a broken `package.json`. Handle these
 - **Package consolidation.** `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others merged into the core `effect` package — remove them from `package.json` and rewrite their imports per the Import Map. Packages that remain separate (`@effect/platform-*`, `@effect/sql-*`, `@effect/ai-*`, `@effect/opentelemetry`, `@effect/vitest`, …) stay as dependencies.
 - **Version alignment.** All Effect ecosystem packages share one version number in v4. Every remaining `effect` / `@effect/*` dependency must be on the same matching version.
 - **Unstable modules.** Some functionality only exists under `effect/unstable/*` import paths (e.g. `effect/unstable/http`, `effect/unstable/rpc`). These are correct v4 imports — use them where the reference maps to them; they may receive breaking changes in minor releases.
-
-## Gaps: When the Reference Says `none`
-
-The reference's `` -> `none` `` entries make most gaps answered data, not judgment calls — each states an alternative. Apply this threshold:
-
-- **Build a replacement** when it is mechanical and behaviour-preserving (e.g. wrapping a vendor SDK where the entry names one).
-- **Stop and report** when the gap forces a semantic or architectural choice.
-
-Either way, list every constructed replacement in the final summary.
 
 ## Hard Prohibitions
 
