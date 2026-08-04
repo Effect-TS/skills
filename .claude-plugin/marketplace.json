@@ -1,0 +1,26 @@
+{
+  "name": "effect-ts",
+  "owner": {
+    "name": "Effect-TS",
+    "url": "https://github.com/Effect-TS"
+  },
+  "description": "Effect agent skills, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "effect-skills",
+      "source": "./",
+      "description": "Agent skills for working effectively in repositories that use Effect.",
+      "category": "engineering",
+      "keywords": [
+        "effect",
+        "effect-ts",
+        "typescript",
+        "skills",
+        "agents",
+        "migration",
+        "schema",
+        "layers"
+      ]
+    }
+  ]
+}
