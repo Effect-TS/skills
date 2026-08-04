@@ -6,9 +6,27 @@ This repository is designed to be installed by skill-aware coding agents so they
 
 ## Installation
 
+Two routes, reading the same skill files.
+
+**As loose skills**, via [skills.sh](https://skills.sh) — copies editable skill files into your project, unnamespaced:
+
 ```sh
-npx skills add Effect-TS/skills
+npx skills add Effect-TS/skills                    # all of them
+npx skills add Effect-TS/skills --skill effect-ts  # just one
 ```
+
+**As a Claude Code plugin** — read-only, always current, and namespaced so it cannot collide with a skill of the same name elsewhere:
+
+```text
+/plugin marketplace add Effect-TS/skills
+/plugin install effect-skills@effect-ts
+```
+
+## Invoking a Skill
+
+Skills fire two ways: automatically, when what you ask matches the skill's `description`; or by name, typed as a slash command. Installed as a plugin the name is namespaced — `/effect-skills:effect-ts` rather than `/effect-ts`.
+
+`effect-v3-to-v4` sets `disable-model-invocation: true`, so it never fires automatically — invoke it by name when you are ready to migrate.
 
 ## Included Skills
 
@@ -38,6 +56,9 @@ A bounded migration skill for upgrading a codebase from Effect v3 to Effect v4. 
 ## Repository Layout
 
 ```text
+.claude-plugin/
+  plugin.json       # Claude Code plugin manifest; lists each skill path
+  marketplace.json  # marketplace manifest, so the repo installs as a marketplace
 skills/
   effect-ts/
     SKILL.md
@@ -67,4 +88,5 @@ When adding a new skill:
 
 1. create `skills/<skill-name>/SKILL.md`
 2. add any detailed guides under `skills/<skill-name>/references/`
-3. keep the skill operational and opinionated, not just descriptive
+3. register the skill path in `.claude-plugin/plugin.json` so plugin users get it too
+4. keep the skill operational and opinionated, not just descriptive

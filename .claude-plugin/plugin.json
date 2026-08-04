@@ -1,0 +1,21 @@
+{
+  "name": "effect-skills",
+  "version": "0.1.0",
+  "description": "Agent skills for working effectively in repositories that use Effect.",
+  "author": {
+    "name": "Effect-TS",
+    "url": "https://github.com/Effect-TS"
+  },
+  "repository": "https://github.com/Effect-TS/skills",
+  "keywords": [
+    "effect",
+    "effect-ts",
+    "typescript",
+    "skills",
+    "agents",
+    "migration",
+    "schema",
+    "layers"
+  ],
+  "skills": ["./skills/effect-ts", "./skills/effect-v3-to-v4"]
+}
