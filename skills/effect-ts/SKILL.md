@@ -1,8 +1,35 @@
 ---
 name: effect-ts
-description: Use this skill whenever working in a repository that uses Effect, even if the current task is in a new file or the user does not explicitly ask for Effect help. Apply it to any work that should follow the repository's Effect patterns, conventions, architecture, or supporting tooling. Also use it for questions about Effect patterns, services, layers, schemas, streams, runtimes, or typed error handling.
+description: Use this skill when setting up a repository that uses the Effect Typescript library.
 ---
 
-# Effect
+# Step 1: Install effect
 
-Read `node_modules/effect/AGENTS.md` for information about Effect before working with it.
+Use the users preferred package manager:
+
+```
+pnpm add effect@beta
+```
+
+If in a monorepo, install it as a dev dependency at the root, so you can access
+the source code from `node_modules/effect/src`.
+
+```
+pnpm add -D effect@beta
+```
+
+# Step 2: Update AGENTS.md / CLAUDE.md
+
+Ensure that the agent instructions contain the following:
+
+```md
+# Learning more about the Effect
+
+This repository uses the Effect Typescript library.
+
+Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
+**completely**, and follow the links in the file when required.
+
+If you need to learn more about particular Effect apis and concepts, search
+through the source code in `node_modules/effect/src`.
+```
