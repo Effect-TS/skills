@@ -14,17 +14,7 @@ npx skills add Effect-TS/skills
 
 ### `effect-ts`
 
-The main Effect skill provides guidance for:
-
-- Effect usage and common constructors
-- layers, services, and dependency injection
-- schema design and transformations
-- error handling
-- SQL and migrations
-- observability
-- testing with `@effect/vitest`
-
-It also expects a local vendored checkout of the Effect repo at `./.repos/effect` in the target project, and includes setup guidance for that workflow.
+The main Effect skill directs agents to the guidance shipped with the installed Effect package at `node_modules/effect/AGENTS.md`.
 
 ### `effect-v3-to-v4`
 
@@ -41,8 +31,6 @@ A bounded migration skill for upgrading a codebase from Effect v3 to Effect v4. 
 skills/
   effect-ts/
     SKILL.md
-    references/
-      *.md
   effect-v3-to-v4/
     SKILL.md
 ```
@@ -50,21 +38,16 @@ skills/
 Conventions:
 
 - each skill lives at `skills/<skill-name>/SKILL.md`
-- supporting guides and reference material live under `skills/<skill-name>/references/`
+- skills can include supporting files when needed
 
 ## Purpose
 
-The goal of this repository is not just to expose API documentation. It is to encode strong implementation preferences for real Effect codebases, including:
-
-- using local guides before source-level repo research
-- preferring safe, typed, schema-driven code
-- preferring `Effect.fn`, proper layers, and service encapsulation
-- preferring Effect-native integrations such as Effect SQL and `@effect/vitest`
+The main skill keeps guidance aligned with the installed Effect version by relying on the package's own `AGENTS.md`. The migration skill provides a focused workflow for v3-to-v4 upgrades.
 
 ## Developing Skills
 
 When adding a new skill:
 
 1. create `skills/<skill-name>/SKILL.md`
-2. add any detailed guides under `skills/<skill-name>/references/`
-3. keep the skill operational and opinionated, not just descriptive
+2. add supporting files only when the skill needs them
+3. keep the skill operational and concise
