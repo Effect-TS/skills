@@ -23,7 +23,7 @@ pnpm add -D effect@beta
 Ensure that the agent instructions contain the following:
 
 ```md
-# Learning more about the Effect
+# Learning more about Effect
 
 This repository uses the Effect Typescript library.
 
