@@ -8,14 +8,14 @@ description: Use this skill when setting up a repository that uses the Effect Ty
 Use the users preferred package manager:
 
 ```
-pnpm add effect@beta
+pnpm add effect@rc
 ```
 
 If in a monorepo, install it as a dev dependency at the root, so you can access
 the source code from `node_modules/effect/src`.
 
 ```
-pnpm add -D effect@beta
+pnpm add -D effect@rc
 ```
 
 # Step 2: Update AGENTS.md / CLAUDE.md
