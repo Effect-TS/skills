@@ -35,7 +35,7 @@ Each clone is independently re-runnable and separately deletable. Do not use `gi
 
 ### Validate an existing checkout before trusting it
 
-`./.repos/effect` may already exist, cloned from the archived `Effect-TS/effect-smol` repo by older setup instructions. That checkout is dead: it is stale and does not contain `migration/v3-to-v4.md`. Verify before using:
+`./.repos/effect` may already exist, cloned from the superseded `Effect-TS/effect-smol` repo by older setup instructions. That checkout is stale and does not contain `migration/v3-to-v4.md`. Verify before using:
 
 ```sh
 git -C .repos/effect remote get-url origin   # must be the canonical Effect-TS/effect repo
@@ -49,12 +49,12 @@ If the origin points at `effect-smol`, or the version is not `4.x`, delete the d
 1. **Front-load `MIGRATION.md` once** (`.repos/effect/MIGRATION.md`).
 2. **`migration/v3-to-v4.md` — the first stop for every API.** The generated reference covers every removed or changed API. Search it (see below); never read it whole.
 3. **A per-topic guide** (`.repos/effect/migration/*.md`) when the mapping implies a rewrite rather than a rename — e.g. `Context.Tag` → `Context.Service` is a structural change, not a symbol swap. Reach these on demand from the `MIGRATION.md` index, not front-loaded.
-4. **v4 source** (`.repos/effect/packages/*/src/`, including `unstable/`) to confirm a replacement's real signature before writing code against it.
+4. **v4 source** (`.repos/effect/packages/*/src/`) to confirm a replacement's real signature before writing code against it.
 5. **v3 source** (`.repos/effect-v3`) as escalation only — for when unsure about the old v3 semantics.
 
 ## Never Read the Reference Doc Whole
 
-**This is the single most important rule in this skill.** `migration/v3-to-v4.md` is ~16,000 lines / ~350k tokens. Reading it in one pass blows the context window and takes the migration with it.
+**This is the single most important rule in this skill.** `migration/v3-to-v4.md` is ~17,000 lines / ~350k tokens. Reading it in one pass blows the context window and takes the migration with it.
 
 Always search it and read only matched lines plus surrounding context. The file has four sections — **Import Map**, **No Counterpart Imports**, **Removed Modules**, and **API Reference** (one `` ### `<v3 module path>` `` heading per module). Entries are grep-able one-liners of the form `` - `Old.symbol` -> `New.symbol`: <rationale> ``, and removals are explicit `` -> `none` `` entries with a stated alternative.
 
@@ -80,9 +80,10 @@ Look up APIs as you encounter them, one search at a time. A miss in the Import M
 
 Faithful per-API lookup alone still yields a broken `package.json`. Handle these once, up front:
 
-- **Package consolidation.** `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others merged into the core `effect` package — remove them from `package.json` and rewrite their imports per the Import Map. Packages that remain separate (`@effect/platform-*`, `@effect/sql-*`, `@effect/ai-*`, `@effect/opentelemetry`, `@effect/vitest`, …) stay as dependencies.
-- **Version alignment.** All Effect ecosystem packages share one version number in v4. Every remaining `effect` / `@effect/*` dependency must be on the same matching version.
-- **Unstable modules.** Some functionality only exists under `effect/unstable/*` import paths (e.g. `effect/unstable/http`, `effect/unstable/rpc`). These are correct v4 imports — use them where the reference maps to them; they may receive breaking changes in minor releases.
+- **Package consolidation.** `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others merged into the core `effect` package. Remove them from `package.json` and rewrite their imports per the Import Map. Packages that remain separate (`@effect/platform-*`, `@effect/sql-*`, `@effect/ai-*`, `@effect/opentelemetry`, `@effect/atom-*`, `@effect/vitest`, …) stay as dependencies. The consolidated v3 packages (including `@effect/sql` and `@effect/cli`) still have npm `latest` tags pointing to `0.x`; remove them rather than bumping everything to `latest`.
+- **Version alignment.** Target the current stable `latest` 4.x release. All Effect ecosystem packages share one version number in v4, so every remaining `effect` / `@effect/*` dependency must use that same matching version.
+- **Module paths and stability.** GA imports use paths such as `effect/http`, `effect/rpc`, and `effect/ai/LanguageModel`. Stability is declared by JSDoc tags, not an import-path segment: `@stability unstable` APIs may receive breaking changes in minor releases, and `@stability experimental` APIs may receive them in patch releases.
+  If migrating code that targeted a beta or RC with `effect/unstable/<module>` imports, drop the `unstable` segment (for example, `effect/unstable/http` → `effect/http`). There are no compatibility exports for the old paths; moving a module does not stabilize its API.
 
 ## Delegating to Sub-Agents
 
